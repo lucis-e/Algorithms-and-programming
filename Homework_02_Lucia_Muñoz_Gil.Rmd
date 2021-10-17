@@ -1,0 +1,341 @@
+---
+title: "Homework 2"
+output: html_document
+author: "Lucía Muñoz Gil"
+---
+
+RULES:
+1. Deadline for homework is Sunday 23:59. Try to turn it in at least a few minutes before to avoid any issues with failed uploads, slow internet, etc. Late admissions are not accepted.
+2. Backup your work, preferrably using GitHub.
+3. If you get stuck on something, try googling it first. You can find answers to a lot of questions on several public forums, but consider those to be guidelines and not solutions. ABSOLUTELY DO NOT COPY-PASTE THE ANSWERS FROM THE INTERNET.
+4. If that fails, you're welcome to ask a question on the Moodle forum, but try to do it in a way which doesn't explain or hint at a part of a solution. If you cannot ask your question without revealing a part of the solution, send an e-mail to dglavas@bioinfo.hr instead of posting on the forum. 
+5. ABSOLUTELY DO NOT COPY-PASTE THE ANSWERS FROM YOUR COLLEAGUES.
+6. Each task states how the final solution (variable or function) should be named. Please take care to name the answers exactly as specified because it helps us in correcting your homeworks.
+6. Please hand in a "clean" version of your homework. That means no error-producing code and no more than one solution for each task (unless specified otherwise in the question). Also, please leave out or at least comment parts of the code which are specific to your system (such as setting the work directory and installing packages). When you're ready to hand in the final version of your homework, please run it once more in a clean environment to make sure you have all variables defined. This means cleaning your environment (either by hand or by re-starting your R session) and then running the whole code once in the order in which it's written.
+7. Do not use any additional packages besides what is in base R (so already loaded automatically when you start a new R session) unless given explicit permission to do so.
+
+
+  
+### 1.
+##### 5 points
+Create a binary operator approx (modify the name if you need to) which will compare two numeric vectors. The operator should compare numbers in the same way as ==, but with tolerance of +-0.1 (meaning TRUE if the difference in value is 0.1 or smaller, FALSE otherwise).
+```{r}
+#FUNCTIONS: 1º-Binary operator that compares the difference among the values in the same position of the two vectors 
+`%bin_op%`<-function(vec1, vec2){
+  result<-ifelse (abs(vec1 - vec2) <= 0.1, TRUE, FALSE)
+  result
+}
+
+#MAIN CODE: creation of the vectors and usage of the binary operator.
+vector1<-c(0, 3, 5, 6.1)
+vector2<-c(0, 4, 5.05, 6)
+
+vector1 %bin_op% vector2
+```
+
+
+
+### 2.  
+##### 18 points
+In this task, you will continue to work on the examples from the second lecture. You can use or further modify any function we created during this lecture (any, so not just the final ones!).
+
+A) Different coin dimensions are as follows: radii from 1.0 to 2.2 cm in increments of 0.1, thickness from 0.1 to 0.3 in increments of 0.02. Make every possible combination of those elements - so all possible pairs of radius and thickness. Save this as a single variable. Mark clearly what is radius and what is thickness.
+Hint: there is a built-in R function which produces all unique combinations. It's in base R, so you shouldn't need to install any new packages. (2 points)
+```{r}
+#create two vectors with the different dimensions of the coin
+radius<-seq(1.0, 2.2, by=0.1); radius
+th<-seq(0.1, 0.3, by=0.02); th
+
+#R function to create a dataframe with all different combinations of dimensions
+dif_comb<-expand.grid("Ratio"=radius, "Thickness"=th); dif_comb
+```
+
+B) Next, create vectors of coin counts for each combination - this represents count per each type of coin per square (number of coins of one type found in one square is always between 50 and 300, chosen at random). Make the vectors differ in length because not every type of coin is found in each square. Mean vector length should be around 500, with standard deviation approximately 100. Note the "around" and "approximately" - this is not exactly normal distribution because all lengths are integers, but it should approximate normal distribution. Figure out how to do this, do not use uniform distribution!   
+Save this information together with dimension combinations in one object (variable). This object can be of any type you find to be appropriate, but bear in mind that 1. you will have to work with it later and 2. it has to be clear which vector "belongs" to which radius-thickness combination. (3 points)  
+```{r}
+#FUNCTIONS: 1º- Function that takes a random sample of n numbers included in the interval (50-300). 2º- Forms a list with different vectors with values of first and second arguments (vectors) in the same position.
+
+COIN_COUNT<-function(n){
+  sol<-sample(c(50:300), size = n, replace = TRUE)
+  sol
+}
+
+COMBINATIONS<-function(vec1, vec2){
+resul<-list(c(vec1, vec2))
+}
+
+
+#MAIN CODE: generate a random sample of numbers that approximate to a normal distribution and that will be the different lengths of the vectors that contain coin counts for different combinations per square. For each length takes a random sample of size equal to this length of numbers (50-300) and saves it on a vector. All vectors created are saved on a list. Each radius-thickness combination is also saved on a list. Finally, the code creates a final object, which is a list, composed of the two previously mentioned lists. By doing this, each combination in list 1 is associated to a different coin count vector in list 2 by their position (from 1 to 143) in their corresponding lists.
+
+vector_length<-round(rnorm(143, mean = 500, sd = 100))
+set.seed(3)
+
+counts<-lapply(vector_length, COIN_COUNT)
+
+
+radius2<-dif_comb[, 1]
+th2<-dif_comb[, 2]
+
+comb<-mapply(COMBINATIONS, radius2, th2)
+
+final_res<-list(comb, counts); final_res
+
+```
+
+C) Make a function which will calculate total weight of gold coins of various dimensions. The function's input should be an object of the same type and layout as the object you created in part B) - in other words, your new function should work on the object you created. The function should return one number: total weight. (4 points)
+```{r}
+
+#density of gold= 19.3 cm**3
+#Being the input of the function a list, the function first extracts elements of second list (the one with the vectors for coin counts) and sums them, saving each sum in the corresponding position of the list. The list is unlisted and elements are saved in a vector Suma. For radius and thickness is similar, after second list being saved in a diferent variable, both radius and thickness of each combination are saved in different vectors. Finally, gold_coinWeight function uses every vector created in the function and calculates the total weight of all the gold coins.
+
+gold_coinWeight <- function(n, r, th) {
+    vol_one <- (r^2) * pi * th
+    vol <- sum(vol_one * n)
+    wgh <- (vol * 19.3) / 1000
+    wgh
+}
+
+RADIUS<-function(a){
+  res<-a[[1]]
+}
+
+THICK<-function(a){
+  res<-a[[2]]
+}
+  
+
+GOLD_COIN_WEIGHT<-function(l){
+  Suma<-unlist(lapply(l[[2]], sum))
+  R<-l[[1]]
+  Rad<-unlist(lapply(R, RADIUS))
+  Thi<-unlist(lapply(R, THICK))
+  
+  wgh_gold<-sum(mapply(gold_coinWeight, Suma, Rad, Thi))
+  wgh_gold
+}
+
+GOLD_COIN_WEIGHT(final_res)
+
+
+```
+
+D) Generate data for gold, silver and copper coins. Silver coins have radii from 1.5 to 3.0 in increments of 0.25 and thickness from 0.12 to 0.28 in increments of 0.02. Copper coins have radii from 1.0 to 2.2 cm in increments of 0.2 and thickness from 0.15 to 0.35 in increments of 0.05. You can assume per-square and total distributions are the same as for gold coins in B).
+Basically, you need to repeat the data creation process from A) and B) three times with different parameters. Do NOT do this by writing almost the same code three times! You need to find a way to "automate" the process. You can choose to organise everything from A) and B) into one function, or split the the process into smaller parts and handle it that way - whatever you find easiest. But you need to generate all the data with one call of (each) function. You will probably use some kind of repetition or looping mechanism, but use only the ones which are optimised in R (e.g. apply family). You are not allowed to use classic for/while/repeat loops. (5 points)
+```{r}
+
+COIN_GENERATION<-function(a, b, c, d, e, f){
+  radius<-seq(a, b, by=c); radius
+  th<-seq(d,e, by=f); th
+  vector_length<-round(rnorm(143, mean = 500, sd = 100))
+  counts<-lapply(vector_length, COIN_COUNT)
+  comb<-mapply(COMBINATIONS, radius, th)
+  final_res<-list(comb, counts)
+  final_res
+}
+
+coinWeight <- function(n, r, th, dens) {
+    vol_one <- (r^2) * pi * th
+    vol <- sum(vol_one * n)
+    wgh <- (vol * dens) / 1000
+    wgh
+}
+
+ANY_COIN_WEIGHT<-function(l){
+  Suma<-unlist(lapply(l[[2]], sum))
+  R<-l[[1]]
+  Rad<-unlist(lapply(R, RADIUS))
+  Thi<-unlist(lapply(R, THICK))
+  
+  wgh_gold<-sum(mapply(gold_coinWeight(dens=dens), Suma, Rad, Thi))
+  wgh_gold
+}
+
+
+ANY_COIN_COUNTS<-function(material){
+  if (material=="silver"){
+    a<-1.5
+    b<-3.0
+    c<-0.25
+    e<-0.12
+    f<-0.28
+    g<-0.02
+    dens<-10.5
+  }
+  else if (material=="copper"){
+    a<-1.0
+    b<-2.2
+    c<-0.2
+    e<-0.15
+    f<-0.35
+    g<-0.05
+    dens<-9
+  }
+  else if (material=="gold"){
+    a<-1.0
+    b<-2.2
+    c<-0.1
+    e<-0.1
+    f<-0.3
+    g<-0.02
+    dens<-19.3
+  }
+  else break
+res1<-COIN_GENERATION(a=a, b=b, c=c, e=e, f=f, g=g)
+res2<-ANY_COIN_WEIGHT(res1)
+res1
+}
+
+ANY_COIN_WEIGHT(silver)
+```
+
+E) Apply the function you created in C)* on the whole data set created in D). Calculate total weights for each type of metal separately, and the total weight you need to haul from the dragon's cave (all the coins together). You should return all that information in one object. (4 points)
+*You will probably need to adjust your original function to include additional parameters. You don't need to re-write the whole function here if you don't want to, you can go back to C) and change the necessary parts there - but remember to check if it still functions correctly!
+```{r}
+
+```
+
+
+
+### 3.  
+#### 4 points
+Create two functions, getSum1 and getSum2, both of which will take 2 arguments (numbers m and n) and calculate the sum of integer numbers from m to n. For example, the result of calling the function with parameters 4 and 6 should be 15 (4 + 5 + 6 = 15). You should get the same result if you called the function with 6 and 4 (in different order). Solve in two different ways.
+```{r}
+#FUNCTION 1: getSum1 creates a vector form 0 to the absolute value of difference between n and m, if the first number (argument) is greater than the second one is the second one which will be added to each value of the vector to get another vector with the numbers n, m and all the numbers in between to do the sum of all. If the first number is samller then it will be added to the vector.
+
+getSum1<-function(n, m){
+  l<-c(0:abs(n - m))
+  res<-ifelse(n > m, sum(m + l), sum(n + l))
+  res
+}
+
+getSum1(6, 4)
+getSum1(4, 6)
+
+#FUNCTION 2: getSum2 creates a sequence from first argument to second argument with a total number of points equal to the difference plus one. Then it sums every value of the vector.
+
+getSum2<-function(n, m){
+  point_number<-abs(n - m) + 1
+  sequ<-seq(m, n, length.out = point_number)
+  res<-sum (sequ)
+  res
+  }
+
+getSum2(6, 4)
+getSum2(4, 6)
+```
+
+
+
+### 4.  
+#### 5 points
+You are an engineer in the Star Fleet, tasked with re-calibrating the anti-collision system. You decide to approximate spaceships as vectors in 3D coordinate space.
+(You are not allowed to use function dist() in this task. Write formulas for distance calculation yourself!)
+
+A) Create a function manhattan that calculates Manhattan distance between two vectors.
+```{r}
+#FUNCTION: Manhattan distance is the sum of the absolute difference between two vectors.
+MANHATTAN<-function(v1, v2){
+  dis<-sum(abs(v1 - v2))
+  dis
+}
+
+#EXAMPLE OF USAGE
+vec1<-c(0, 2, 4)
+vec2<-c(-1, 2, 1)
+MANHATTAN(vec1, vec2)
+```
+
+B) Create a function euclidean that calculates Euclidean distance between two vectors.
+```{r}
+#FUNCTION: Euclidean distance is the square root of the sum of the squared differences between two vectors
+EUCLIDEAN<-function(v1, v2){
+  differences<-abs(v1 - v2)**2
+  dis<-sqrt(sum(differences))
+  dis
+}
+
+#EXAMPLE OF USAGE
+vec1<-c(0, 2, 4)
+vec2<-c(-1, 2, 1)
+EUCLIDEAN(vec1, vec2)
+```
+
+C) Create a function cheby that calculates Chebyshev distance between two vectors.
+```{r}
+#FUNCTION: Euclidean distance is the square root of the sum of the squared differences between two vectors
+CHEBYSHEV<-function(v1, v2){
+  difference<-abs(v1 - v2)
+  dis<-max(difference)
+  dis
+}
+
+#EXAMPLE OF USAGE
+vec1<-c(0, 2, 4)
+vec2<-c(-1, 2, 1)
+CHEBYSHEV(vec1, vec2)
+```
+
+D) Create a function getDistance with three parameters (v1, v2, metric) that will calculate a distance between vectors v1 and v2. The distance to be used will be passed as a string via metric argument and can be one of the following: “Manhattan”, “Euclidean”, “Chebyshev”. Use the functions you created before inside the final function. Add a warning if distance is smaller than 3.
+```{r}
+#FUNCTION: depending on third argument the function calls MANHATTAN, EUCLIDEAN OR CHEBYSHEV functions in order to calculate the required distance. If the third argument is not one of this three options the code stops. Also, if the distance is smaller than 3 the code shows a warning message.
+
+getDistance<-function(v1, v2, metric){
+  if (metric == "Manhattan"){
+    res<-MANHATTAN(v1, v2) 
+    }
+  else if (metric == "Euclidean"){
+    res<-EUCLIDEAN(v1, v2)
+  }
+  else if (metric == "Chebyshev"){
+    res<-CHEBYSHEV(v1, v2)
+  }
+  else break
+
+  if (res < 3){
+    warning("Distance smaller than 3!")
+  }
+  res
+}
+
+#EXAMPLES OF USAGE
+vec1<-c(0, 2, 4)
+vec2<-c(-1, 2, 1)
+getDistance(vec1, vec2, "Manhattan")
+getDistance(vec1, vec2, "Euclidean")
+getDistance(vec1, vec2, "Chebyshev")
+getDistance(vec1, vec2, "DONT KNOW")
+```
+
+
+
+### 5.  
+#### 3+2 points
+A) Make a function est_pi that will estimate the value of the number pi by randomly generating points inside a square and checking whether they fall within a circle inscribed in that square. Points fall within a circle if the distance from circle center is smaller than or equal to the radius of the circle.  
+```{r}
+#FUNCTION: est_pi 
+
+est_pi<-function(rad){
+x<-runif(100, min=-rad, max=rad)
+y<-runif(100, min=-rad, max=rad)
+distance<-sqrt(x**2 + y**2)
+
+point<-ifelse(distance <= rad, "Circle", "Square")
+circle_points<-as.numeric(table(point))[1]
+
+res<-4*(circle_points / 100)
+res
+}
+
+#EXAMPLES OF USAGE: 
+est_pi(5)
+est_pi(10)
+```
+
+B) Repeat this estimation 100,000 times using function replicate (if the computer on which you're working on can't handle it, lower the number of repetitions; if this function call runs longer than 5-10 minutes, stop it, lower the numbers, and try again). How much (in % terms) is it different from actual value of pi if you first set the seed to 1234? (Google function set.seed() and what it does.) Use the pi variable that is part of the base R package to do this comparison. 
+```{r}
+set.seed(1234)
+new_pi<-replicate(100000, est_pi(5))
+est<-(abs(mean(new_pi) - pi) / pi) * 100
+est
+```
+
