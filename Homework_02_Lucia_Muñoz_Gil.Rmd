@@ -32,6 +32,7 @@ vector2<-c(0, 4, 5.05, 6)
 
 vector1 %bin_op% vector2
 ```
+<font color="red">You don't need ifelse() here; just " result <- abs(vec1 - vec2) <= 0.1 " would do the same thing. (This is not a mistake, just stylistic advice for code readability.) </font>
 
 
 
@@ -82,6 +83,13 @@ final_res<-list(comb, counts); final_res
 
 ```
 
+<font color="red">Avoid writing functions as simple as these ones (COIN_COUNT and COMBINATIONS). It might look like a good idea at first, but if you're working on a bigger project, it starts to get really confusing, really fast, even to yourself. You can always search help if you forget what one of standard R functions does, but in order to do the same for the function you wrote, you have to find where you wrote it and decode what you meant by it at the time. Not to mention it's really hard for anyone else to follow your code. So if a function body has no more that 1 or 2 lines of code, don't declare a new function for that - just use the code in its original form.    
+Good usage of lapply, but the mapply-ing COMBINATIONS is completely unnecessary. Why even split thickness and radius when you already have them in one object? Not only you could've combined all those objects (dimensions and counts' vectors) in a much more straightforward and simple way, but the end result would be much easier to handle later on as well. With the way you wrote this, you're getting a multi-listed nested list, which is a headache to work on. Even if one chose to work on a list, this one is unnecessarily complicated. I suggest you play a bit with lists and data frames, and explore in what ways you can combine different objects. It will be very useful for you later.  
+Also PLEASE do not leave outputs so big to print out in the console. Use head(), View(), or something else.  
+And just FYI at the end: function names are not usually in caps lock in R. Don't ask me why, but everybody does it like that and so should you (so others could read your code more easily).  
+So to summarise, solution correct but code has serious problems so 1.5/3  </font>
+
+
 C) Make a function which will calculate total weight of gold coins of various dimensions. The function's input should be an object of the same type and layout as the object you created in part B) - in other words, your new function should work on the object you created. The function should return one number: total weight. (4 points)
 ```{r}
 
@@ -118,6 +126,10 @@ GOLD_COIN_WEIGHT(final_res)
 
 
 ```
+
+<font color="red">Same comment as above for functions RADIUS and THICKNESS. Don't write superfluous functions to avoid learning how to use apply functions properly. The listed-nested-listed monstrosity of a list you created in part B is the only only reason you need so many lapplys and functions that do basically nothing except manage said list. But you already lost points for that in B so I'm not taking them again.  
+Nice usage of mapply, and GOLD_COIN_WEIGHT is a nicely written function (if you squint and ignore the list-wrangling part :)). So nice job programming but please familiarise yourself with data structures in R better!  </font>
+
 
 D) Generate data for gold, silver and copper coins. Silver coins have radii from 1.5 to 3.0 in increments of 0.25 and thickness from 0.12 to 0.28 in increments of 0.02. Copper coins have radii from 1.0 to 2.2 cm in increments of 0.2 and thickness from 0.15 to 0.35 in increments of 0.05. You can assume per-square and total distributions are the same as for gold coins in B).
 Basically, you need to repeat the data creation process from A) and B) three times with different parameters. Do NOT do this by writing almost the same code three times! You need to find a way to "automate" the process. You can choose to organise everything from A) and B) into one function, or split the the process into smaller parts and handle it that way - whatever you find easiest. But you need to generate all the data with one call of (each) function. You will probably use some kind of repetition or looping mechanism, but use only the ones which are optimised in R (e.g. apply family). You are not allowed to use classic for/while/repeat loops. (5 points)
@@ -188,6 +200,8 @@ res1
 ANY_COIN_WEIGHT(silver)
 ```
 
+<font color="red">This doesn't work because you hard-coded the number 143 in function COIN_GENERATION, while dimensions of silver and copper coins are such that there is a different number of combinations for them. If you corrected that, function call in the last line still wouldn't work because you treated silver as a variable and not a character string (so silver instead of "silver"). You are also missing the last, key step in this part, which is to apply ANY_COIN_WEIGHT at silver, gold and copper coin datasets simultaneously. And you're also calculating the weight but actually not exporting that but the datasets. All together, it looks to me like you ran out of time? 1.5/5 for ANY_COIN_COUNTS (althought it could be done more elegantly) and for at least trying.  </font>
+
 E) Apply the function you created in C)* on the whole data set created in D). Calculate total weights for each type of metal separately, and the total weight you need to haul from the dragon's cave (all the coins together). You should return all that information in one object. (4 points)
 *You will probably need to adjust your original function to include additional parameters. You don't need to re-write the whole function here if you don't want to, you can go back to C) and change the necessary parts there - but remember to check if it still functions correctly!
 ```{r}
@@ -224,6 +238,7 @@ getSum2(6, 4)
 getSum2(4, 6)
 ```
 
+<font color="red">nice!</font>
 
 
 ### 4.  
@@ -307,7 +322,6 @@ getDistance(vec1, vec2, "DONT KNOW")
 ```
 
 
-
 ### 5.  
 #### 3+2 points
 A) Make a function est_pi that will estimate the value of the number pi by randomly generating points inside a square and checking whether they fall within a circle inscribed in that square. Points fall within a circle if the distance from circle center is smaller than or equal to the radius of the circle.  
@@ -330,6 +344,8 @@ res
 est_pi(5)
 est_pi(10)
 ```
+<font color="red">Ok, except here we're not really intersted in circle and square dimensions (as long ast the circle is inscribed in the square). The radius doesn't matter at all since we're using the ratio of areas in our estimation. So it makes no sense at all to put radius as the input, because it doesn't influence the result at all. What does influence the precision of the estimation greatly, however, is the number of points generated. It would make much more sense to put that as the input variable.   2/3
+Also, don't complicate if there's no need: sum(distance <= rad) would do the same as ifelse and table in your code, but a lot clearer and faster. </font>
 
 B) Repeat this estimation 100,000 times using function replicate (if the computer on which you're working on can't handle it, lower the number of repetitions; if this function call runs longer than 5-10 minutes, stop it, lower the numbers, and try again). How much (in % terms) is it different from actual value of pi if you first set the seed to 1234? (Google function set.seed() and what it does.) Use the pi variable that is part of the base R package to do this comparison. 
 ```{r}
@@ -338,4 +354,10 @@ new_pi<-replicate(100000, est_pi(5))
 est<-(abs(mean(new_pi) - pi) / pi) * 100
 est
 ```
+<font color="red">this part is ok  2/2  </font>
+
+<font color="red">IMPORTANT NOTICE  
+Task 2 shows obvious signs of not starting your homework on time. This is a bad practice, which lost you a lot of points in this homework. Try not to do it again.  
+It also bears a striking resemblance to the code one of your colleagues submitted. I don't know if you divided the tasks, worked together, or somebody copy-pasted from another, and I don't care. Next time we see something like that, everybody involved loses all points for the task, and gets additional negative points as well. This is your first and final warning. Please take it seriously.
+</font>
 
