@@ -1,0 +1,192 @@
+---
+title: "Homework 4. Data manipulation"
+author: "Lucía Muñoz Gil"
+output: html_notebook
+---
+
+
+# Deadline for homework is Sunday, 30.10.2021., 23.55 h
+
+# Instructions and RULES:
++ Perform all of the analysis using only data.table. 
++ It is allowed to use functions that are present in base R (DO NOT forget them as you may need to search them and use them in this homework).
++ All the solutions which use for loops will not be graded. Use the functions from the apply family!!!
++ If certain task contains detailed instructions how to solve something, then those instructions must be followed or these tasks will not be graded.
++ Whenever you are asked to show a certain value or values as an answer and if it is not precisely stated in which format should the answer be (data.table or a vector) then both answers are correct.
++ Manual calculations and writing the answers directly on the code chunk will not be taken into consideration without the proper coding steps (and/or saved variable) that confirm this answer.
+
+
+# Task 1. NMR peaks (10 pts)
+Goal: In this task you will have to upload multiple files in R and save certain calculation in a newly created format. You will be working with peak lists and intensity files for urine samples measured by 1H NMR (Psihogios NG, et al.). Files are located under the folder Task1.
+
+a) Import the files located in folder Task1. Make one table of all the imported files. The table must also have sample id (only the name of the file) and group name (severe kidney disease and healthy). (Since you have not learned regular expression and string manipulation, solve this task without it.). **Do not read files one at the time! Hard coding will not be evaluated!** (5)
+```{r}
+##FORMA MAS FACIL
+
+#lista de archivos
+temp1<-list.files(path="/Users/luciamunozgil/Desktop/Homework/Homework4/Task1/Healthy", full.names = TRUE)
+temp_hel<-list.files(path="/Users/luciamunozgil/Desktop/Homework/Homework4/Task1/Healthy")
+
+temp2<-list.files(path="/Users/luciamunozgil/Desktop/Homework/Homework4/Task1/Severe_kidney_disease", full.names = TRUE)
+temp_kid<-list.files(path="/Users/luciamunozgil/Desktop/Homework/Homework4/Task1/Severe_kidney_disease")
+
+one<-rbindlist(lapply(setNames(temp1, temp_hel), fread), idcol=TRUE)
+one[, Group := "Healthy"]
+
+dos<-rbindlist(lapply(setNames(temp2, temp_kid), fread), idcol=TRUE)
+dos[, Group := "Severe Kidney Disease"]
+
+var1a<-rbind(one, dos); var1a
+
+
+##trying to do it all together in other way
+prueba_nombres<-list.files(path=c("/Users/luciamunozgil/Desktop/Homework/Homework4/Task1/Healthy", "/Users/luciamunozgil/Desktop/Homework/Homework4/Task1/Severe_kidney_disease")); prueba_nombres
+prueba_links<-list.files(path=c("/Users/luciamunozgil/Desktop/Homework/Homework4/Task1/Healthy", "/Users/luciamunozgil/Desktop/Homework/Homework4/Task1/Severe_kidney_disease"), full.names = TRUE); prueba_links
+
+setNames(prueba_links, prueba_nombres)
+
+```
+
+b) Crate a new subdirectory under the directory "Task1" called "results" using R. Make an R object that contains two tables. You are going to save the R object in the created directory "results". The first table has the summary statistic of ppm of each group (sum, mean, median, min, max). While the second table contains the same summary statistics of ppm but only for three patient with severe kidney disease that have the highest overall intensity. The calculated results must be in rows and groups/patients in columns. (5)
+```{r}
+#creation of subdirectory results
+dir.create("/Users/luciamunozgil/Desktop/Homework/Homework4/Task1/results")
+
+#First table: sumary statistic of ppm of eeach group
+fst_table<-var1a[, .(sum = sum(ppm),
+                     mean = mean(ppm),
+                     median = median(ppm),
+                     min = min(ppm),
+                     max = max(ppm)), by=Group]; fst_table
+
+fst_table1<-as.data.table(t(fst_table)[-1, ])
+colnames(fst_table1)<-fst_table[, Group]; fst_table1
+
+#Second table: se puede mejorar?????
+three_highest<-var1a[Group=="Severe Kidney Disease", .(int_mean = mean(INTENSITY)), by=.id][order(-int_mean), .id[1:3]]
+
+sec_table<-rbindlist(lapply(three_highest, function (x) var1a[.id==x, .(sum = sum(ppm),
+                                                                        mean = mean(ppm),
+                                                                        median = median(ppm),
+                                                                        min = min(ppm),
+                                                                        max = max(ppm))])); sec_table
+
+sec_table1<-as.data.frame(t(sec_table))
+colnames(sec_table1)<-three_highest
+#as.data.table????? why does not keep rownames?
+
+
+#Saving the R object
+save(fst_table1, sec_table1, "/Users/luciamunozgil/Desktop/Homework/Homework4/Task1/results/data.RData")
+#not working??
+```
+
+
+# Task 2. GC content sponges (20 pts)
+Table mononucleotides.txt and dinucleotides.txt contain mono/dinucleotide counts in 7 different sponge species. Use all data.table operations as you need them in these task. 
+Your tasks are as follows:
+```{r}
+mononucleotides <- data.table::fread("http://hex.bioinfo.hr/~mfabijanic/mononucleotides.txt")
+dinucleotides <- data.table::fread("http://hex.bioinfo.hr/~mfabijanic/dinucleotides.txt")
+```
+
+(3 pts) - Change name of the first column to "species". Calculate mono/dinucleotide frequencies for each species (do this with and without *melt* function and in later tasks proceed with only one table of your choice).
+```{r}
+#CHENGE OF NAME
+lapply(list(mononucleotides, dinucleotides), function (x) setnames(x, "rn", "species"))
+
+#FRECUENCY CALCULATION WITHOUT MELT
+mono_col<-colnames(mononucleotides)[-1]
+freq_mono<-copy(mononucleotides)
+freq_mono<-freq_mono[, lapply(.SD, function (x) x/sum(.SD)), .SDcols=mono_col, by=species]; freq_mono
+
+di_col<-colnames(dinucleotides)[-1]
+freq_di<-copy(dinucleotides)
+freq_di<-freq_di[,lapply(.SD, function (x) x/sum(.SD)), .SDcols=di_col, by=species]; freq_di
+
+#FRECUENCY CALCULATION WITH MELT
+freq_mono2<-melt(mononucleotides, id.vars = c("species"), measure.vars = mono_col, variable.name = "nucleotide", value.name = "count" )
+freq_mono2[, frecuencies := count/sum(count), by=.(species)]; freq_mono2
+
+freq_di2<-melt(dinucleotides, id.vars = c("species"), measure.vars = di_col, variable.name = "dinucleotide", value.name = "count" )
+freq_di2[, frecuencies := count/sum(count), by=.(species)]; freq_di2
+
+```
+
+(3 pts) - Calculate GC content in each sponge and add it as a column to the dinucleotide frequency table.
+```{r}
+#GC-content percentage is calculated as Count(G + C)/Count(A + T + G + C) * 100%.
+
+temp1<-freq_mono2[, .("GC_content (%)" = (count[nucleotide=="C"] + count[nucleotide=="G"])/sum(count) * 100), by=species]
+freq_di2<-merge(freq_di2, temp1, by="species"); freq_di2
+```
+
+(1+1+1+1 pts) - If all dinucleotides are equally probable, what is the probability for any of them = expected frequency? Which dinucleotide is underrepresented? Which are overrepresented? Are they reproducibly over/underrepresented in all sponges?
+```{r}
+#Probability of any of them = expected frequency
+e_freq<-(1/16); e_freq
+
+#Which dinucleotide is underrepresented --> I do not know if you wanted just the dinucleotide or dinucleotide+ species, so here is both options:
+var2c1<-freq_di2[frecuencies>e_freq, .(species), by=dinucleotide]; var2c1
+var2c1<-freq_di2[frecuencies>e_freq, unique(dinucleotide)];var2c1
+
+
+#Which dinucleotide is overrepresented --> I do not know if you wanted just the dinucleotide or dinucleotide + species, so here is both options:
+var2c2<-freq_di2[frecuencies<e_freq, .(species), by=dinucleotide]; var2c2
+var2c2<-freq_di2[frecuencies<e_freq, unique(dinucleotide)]; var2c2
+
+#In all sponges?
+var2c1[order(dinucleotide), .N, by=dinucleotide][N==7] #this are the only ones that are overrepresented in all sponges
+var2c2[order(dinucleotide), .N, by=dinucleotide][N==7] #this are the only ones that are underrepresented in all sponges
+```
+
+(5 points) - Since GC content differs between sponge species (not all mononucleotides are equally represented), the expected frequency for dinucleotides will not be the same for each sponge species. Calculate the expected frequency for each dinucleotide in each sponge species (*from mononucleotide table*) and add it to a column in dinucleotide frequency table.
+```{r}
+
+```
+
+(1+1+1+2 points) - Calculate (observed-expected)/expected score for each dinucleotide and each species. Which dinucleotides are overrepresented and which are underrepresented now when you have taken GC content into account? Is the over/underrepresentation reproducible for all sponge species? How would you explain it with biology in mind?
+```{r}
+
+```
+
+
+
+# Task 3. Mutational signatures in human cancer (15 pts)
+
+## Short introduction
+Mutational signatures are characteristic combinations of mutation types arising from specific mutagenesis processes such as DNA replication infidelity, exogenous and endogenous genotoxins exposures, defective DNA repair pathways and DNA enzymatic editing. Type of mutations that occur are base subsitutions, indels and structural variants. 
+Single base substitutions (SBS) are a replacement of a certain nucleotide base with another base. Considering the pyrimidines of the Watson-Crick base pairs, there are only six different possible substitutions: C>A, C>G, C>T, T>A, T>C, and T>G. Current SBS signatures have been identified using 96 different contexts, considering not only the mutated base, but also the bases immediately 5’ and 3’. Detailed examples of those SBS signatures can be found at https://cancer.sanger.ac.uk/cosmic/signatures/SBS/. 
+
+## Task
+Your job is to analyze mutational signatures for patients with breast adenocarcinoma (**Breast-AdenoCA**). However, your lab colleagues have not given you one tidy table for breast cancer patients for analysis but many smaller tables containing the information for all the patients which you have to combine together into one to be able to perform the analysis. 
+
+The files at your disposal are the following:
+
++ MAIN TABLES containing the results from the program SigAnalyzer for mutational signatures SBS2 and SBS13 (each in a separate files, ***SBS2.RDS*** and ***SBS13.RDS***). The names of the columns and rows are missing, but you have been informed that colnames should be the name of the patients and rownames the genomic intervals. Values represent the probability of the mutational signature in specific genomic interval for each patient.
++ Table with ordered patients names. (***patients.txt***)
++ Table with ordered used genomic intervals for the SigAnalyzer. Some regions were filtered from the analysis due to low mappability. (***intervals.txt***)
++ Table with all the genomic intervals and special assigned names by your colleague. (***interval_names.txt***)
+
+The analysis was performed on the pre-selected genomic intervals of 1 Mb (***intervals.txt***) and those intervals are the ones that should be added to the combined table of files ***SBS2.RDS*** and ***SBS13.RDS***. However, your colleague wants to have the special names of the genomic intervals in that file, the ones found under the column **interval** in the file ***interval_names.txt***. 
+
+Your tasks are the following:
+
++ First, make one combined table from the tables containing results for SBS2 and SBS13 (***SBS2.RDS*** and ***SBS13.RDS***). Secondly, add a column "signature_mutations" containing the "SBS2" and "SB13" for the precise rows in the now combined (MAIN TABLE) table. (Must be done in this order for 2 pts)
+```{r}
+
+```
++ Add patients name and special assigned genomic interval name by your colleague to the MAIN TABLE (8 pts) (Hints: Look at the both tables containing intervals. What is the difference between them? Think of your own unique way how can you fix that.). Work as tidy as you can in this task!
+```{r}
+
+```
+
++ From the file=**patientsCancerType.txt** add the appropriate cancer type for each patients (3 pts)
+```{r}
+
+```
++ How many breast adenocarcinoma patients do you have and which one has the total highest probability for mutational signatures SBS2 and SBS13, respectively? (2 pts)
+```{r}
+
+```
+
