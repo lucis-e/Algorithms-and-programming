@@ -1,0 +1,172 @@
+---
+title: "Homework_05_Lucía_Muñoz_GIl"
+author: "Lucia Muñoz Gil"
+date: "3/11/2021"
+output: html_document
+---
+#Homework tidyverse
+fhorvat
+
+29. listopad, 2021
+
+#Remarks and initial instructions
+you can use any package from this list and base R unless stated differently:
+    dplyr
+    tidyr
+    tibble
+    magrittr
+    stringr
+There are 2 exercises (10 + 13 = 23 points).
+You can use any variable names, but try to use informative and logical names (if you use something stupid I will tell Dunja&Paula)
+Use pipes as much as you can (you will not lose points if you don’t use them all the time, but you will lose some points if you don’t use them at all. Also, Hadley Wickham will be sad.)
+For all tasks you’ll need to read data into R from tables. You’re allowed to use functions from any package (readr, data.table) for that.
+You’re allowed to use stringr package in all of the exercises
+Do not collaborate while doing homework. If 2 or more submitted solutions share identical or similar code, total awarded points will be divided by number of identical solutions.
+All the assignments are based on the authentic data and represent real analyses and problems I face as bioinformatician in my day-to-day work. As such, this homework should give you at least some idea about a kind of work you could be doing one year from now (if you want to do bioinformatics and you manage to pass this homework and whole module of course)
+You will have to read a bit more for this homework because I wanted to give you context and as much data as possible for each assignment
+
+```{r}
+library(dplyr)
+library(tibble)
+library(tidyr)
+library(ggplot2)
+library(data.table)
+library(magrittr)
+library(readr)
+```
+
+##1. lncRNA mutant mice breeding
+3 + 1 + 1 + 1 + 1 + 3 = 10 points
+
+Table Breeding_Performance_Lnc1_190815.csv contains breeding performance of mutant mice produced using Cas9-mediated deletion of one particular lncRNA promoter on chromosome 7. This lncRNA is highly expressed in mouse oocytes and is suspected to have a role in early development. If you want to find out more about long non-coding RNAs and their roles in mammalian development check:
+
+Ganesh, S., Horvat, F., Drutovic, D., Efenberkova, M., Pinkas, D., Jindrova, A., Pasulka, J., et al. (2020) 
+The most abundant maternal lncRNA Sirena1 acts post-transcriptionally and impacts mitochondrial distribution. 
+Nucleic Acids Res, 48(6), 3211–3227
+
+We want to check whether deletion of this particular lncRNA has any impact on female mouse fertility. Each row represents one breeding event, or more precisely one birth event. First column is a unique identifier of cage in the animal facility. Genotypes of mother and father are marked in columns named female and male. Next 7 columns represent numbers of pups born in this event accross different categories - 3 different possible genotypes of pups, male/female pups, dead-born pups and total number of born pups. Columns Timeline, D.O.B and D.O.L mark different time points for each event. Finally, last two columns mark age of mother at the day of the birth.
+
+a) Read the data into R. Transform the data to class tibble. Data has to stay as tibble through the whole analysis. As you can see, some column names have whitespaces in them. This is not preferred and it will be annoying so replace all those whitespaces with underscores. Also, there are two pairs of columns which basically have the same names, but represent different observations - rename those to correctly reflect the data. You’re allowed to rename any other columns if you don’t like some of the names. Remove columns representing time points, we don’t need them for this analysis. Assign this new table to a variable. (3 points)
+
+```{r}
+table1<-as_tibble(fread("Breeding_Performance_Lnc1_190815.csv"))
+
+var1a<-table1 %>%
+  rename_with(~ gsub(" ", "_", .)) %>%
+  select(- c(contains("."), Timeline),
+         Gen_father = male,
+         Gen_mother = female,
+         neg_neg = 4,
+         pos_neg = 5,
+         pos_pos = 6)
+
+var1a
+```
+
+b) Find breeding events where ratio of female-to-male pups is at least 2.5. Take in account only rows where you have at least one alive pup. Arrange result by age of mother from older to younger. You don’t need to assign result to a variable, printing result is ok. (1 point)
+
+```{r}
+var1a %>%
+  arrange(- Age_of_mother_In_weeks) %>%
+  filter(Total - Dead > 0 & Female / Male >= 2.5)
+```
+
+c) Find the id(s) of the cage(s) with most births of full knock-out pups. Printing result is ok (1 point)
+
+```{r}
+##knock-out is that the gene of interest does not have expression, so is genotype -/-.
+var1a %>%
+  group_by(Cage) %>%
+  summarise(total_knockout = sum(neg_neg, na.rm = TRUE)) %>%
+  filter(total_knockout == max(total_knockout))
+```
+
+d) Find mean age of the mothers at the day of mating which gave births to litters without any dead-born pups. Average gestation period for mice is 21 days. Printing result is ok. (1 point)
+
+```{r}
+var1a %>%
+  filter(Dead == 0)  %>%
+  summarise(mean_mating_age = mean(Age_of_mother_in_days - 21, na.rm = TRUE))
+```
+
+e) Find numbers of dead pups born for each combination of mother/father genotypes, but take in account only cases where mother and father have the same genotype. P. R. I. O. (1 point)
+
+```{r}
+var1a %>%
+  group_by(Gen_father, Gen_mother) %>%
+  summarise(Num_dead = sum(Dead, na.rm = TRUE), .groups = "drop") %>%
+  filter(Gen_father == Gen_mother)
+```
+
+f) Create a new variable based on the age of mother with two values - young and old. Breakpoint should be at 36 weeks. For each age category calculate the mean number of male and female pups. Final table should be in tidy format with 3 columns - age category of mother, sex of the pup and mean value. Shockingly, printing result is still ok. (3 points)
+
+```{r}
+var1a %>% 
+  mutate(Age_category_of_mother = ifelse(Age_of_mother_In_weeks > 36, "Old", "Young")) %>%
+  group_by(Age_category_of_mother) %>%
+  summarise(mean_Female = mean(Female),
+            mean_Male = mean(Male)) %>%
+  pivot_longer(cols = -Age_category_of_mother,
+               names_to = "Sex",
+               names_prefix = "mean_",
+               values_to = "mean_value")
+  
+```
+
+
+##2. RNA-seq counts normalization
+3 + 10 = 13 points
+
+Removal of poly(A) tail is an important mechanism controlling eukaryotic mRNA turnover. The major eukaryotic deadenylase complex CCR4-NOT contains CNOT6L as an active deadenylase component in mouse, hamster, and bovine oocytes. To evaluate the role of CNOT6L in maternal mRNA degradation process during oocyte-to-embryo transition in mice, knock-out mouse model was produced using TALENs designed to delete coding exons 4–11 of Cnot6l gene. Impact of the deletion on the whole transcriptome was assessed by bulk RNA-seq. We sequenced 3 replicates of each WT and CNOT6L knock-outs in 3 mouse developmental stages (GV oocyte, MII egg and 1-cell zygote). You may find out more about the role of CNOT6L in oocyte-to-embryo transition and get details about sequencing in the following publication:
+
+Horvat, F., Fulka, H., Jankele, R., Malik, R., Jun, M., Solcova, K., Sedlacek, R., Vlahovicek, K., et al. (2018)
+Role of Cnot6l in maternal mRNA turnover. 
+Life Sci Alliance, 1, e201800084.
+
+First step after mapping and aligning raw reads to the genome is getting counts of reads (.bam files) over exons of genes annotated by Ensembl (.gtf file). This can be done in R with the following code example:
+                                           
+
+bam_files <- Rsamtools::BamFileList(bam_paths, yieldSize = 2000000)
+BiocParallel::register(BiocParallel::MulticoreParam(workers = 12))
+se <- GenomicAlignments::summarizeOverlaps(features = exons_gr,
+                                           reads = bam_files,
+                                           mode = "Union",
+                                           singleEnd = FALSE,
+                                           ignore.strand = TRUE)
+                                           
+
+Next step is normalizing raw counts over genes. One of the simpler ways to do this is calculating RPKM/FPKM values from raw counts. Raw counts are stored in the file ensembl.GRCm38.89.CNOT6L.summarizedOverlaps.chr5.csv. Other data you will need for your assignment is stored in two files called CNOT6L.sample_table.csv and ensembl.89.GRCm38.p5.20180615.UCSCseqnames.geneInfo.chr5_chr6.csv. Only packages allowed for this assignment are tidyverse packages (dplyr, tidyr, tibble, magrittr, readr, stringr). You need to use pipes as much as possible.
+
+What are RPKM and FPKM units? What’s the difference between RPKM and FPKM, when do we use one and when the other? Why are we going to calculate FPKM and not RPKM for this assignment? When calculating FPKM/RPKM units, which 2 technical biases in sequenced data counts are we correcting for? Write the general formula used to calculate FPKM/RPKM units from raw counts. (3 points)
+
+```{r}
+#RPKM and FPKM units are expression units in RNA-seq. RPKM stands for Reads Per Kilobase of trasncript per Million mapped reads, whereas FPKM means Fragments Per Kilobase of transcript per Million mapped reads. RPKM was made for single-end RNA-seq where one read corresponds to one sequenced fragment. However, FPKM was made for paired-end RNA-seq. Paired-end RNA-seq experiments produce 2 reads per fragment but sometimes, when some of the reads can not be mappable, just one read can correspond to a single fragment. So the only difference between RPKM and FPKM is that two reads can map to one fragment (so it does not count this fragment twice) and that is why we are calculating FPKM rather than RPKM.
+
+#The two technical biases in sequenced data counts are depth of sequencing and gene length (to make gene expressions comparable within samples)
+
+#FORMULA: FPKM = (Total Fragments) / (Mapped reads (millions) * exon length (bp)) = 10^9 * C / N * L
+```
+
+Get FPKM normalized values from raw counts stored in table ensembl.GRCm38.89.CNOT6L.summarizedOverlaps.chr5.csv. Final output should be a tibble with same dimensions as original table but with FPKM values instead of raw reads. (10 points) You’ll get bonus 2 points if you do the whole assignment (not including reading tables, but this is also possible) as one big pipe
+
+```{r}
+Raw_counts<-as.tibble(fread("ensembl.GRCm38.89.CNOT6L.summarizedOverlaps.chr5.csv"))
+data1<-fread("CNOT6L.sample_table.csv")
+data2<-as.tibble(fread("ensembl.89.GRCm38.p5.20180615.UCSCseqnames.geneInfo.chr5_chr6.csv"))
+
+
+final_output<-data2 %>%
+  select(gene_id, total_exon_length_sum) %>%
+  right_join(Raw_counts, by = "gene_id") %>% 
+  pivot_longer(cols = -c(gene_id, total_exon_length_sum),
+               names_to = c("sample_id", "temp"),
+               names_pattern = "(.*)[.](Aligned.sortedByCoord.out.bam)",
+               values_to = "fragments") %>%
+  inner_join(data1, by = "sample_id") %>%
+  mutate(fragments = fragments / (total_exon_length_sum * (library_size / 10^9)))  %>%
+  select(-c(total_exon_length_sum, stage:bam_path)) %>%
+  pivot_wider(names_from = c(sample_id, temp),
+              values_from = fragments)
+
+final_output
+```
