@@ -1,0 +1,186 @@
+---
+title: "Homework6_Lucía_Muñoz_Gil"
+author: "Lucia Muñoz Gil"
+date: "10/11/2021"
+output: html_document
+---
+
+# 96,7% (29/30)
+
+
+
+## R Markdown
+Homework ggplot2
+08. November, 2021
+
+#ggplot2
+
+#1. Recreate the plots (15 points)
+
+In this exercise you will analyze the results of surveys that participants of an NGS course filled out after participation. In parts A) and B) you are supposed to recreate the plots. 
+
+A) 5 points. Grading of lecturers by course participants. Participants are colored by gender.
+
+```{r}
+library(data.table)
+library(ggplot2)
+library(dplyr)
+library(tibble)
+library(tidyr)
+library(ggplot2)
+library(data.table)
+library(magrittr)
+library(readr)
+works <- fread("http://hex.bioinfo.hr/~mfabijanic/works.txt", header = T)
+```
+
+```{r}
+var1a<-ggplot(works, aes(Lecturer, - GradeNumerical)) + geom_violin() + geom_jitter(aes(color = Gender)) + scale_y_continuous(name = "Grade", breaks = - (1:5), labels = c("Excellent", "Good", "Average", "Below average", "Extremely bad"))
+
+var1a
+```
+<span style="color:red"> 3/5 pts  Different theme is shown in the original plot. You should have selected theme_light or theme_bw() or any other that is more similar to the original image. Jitter does create random position for dots on both axis, but on the original image they are more condensed. Examine what argumen *width* in geom_jitter does. Axis x text is not in proper orientation. </span>
+
+
+B) 5 points. Results of the survey on whether the participants would recommend the course. Possible answers in the survey were: “Strongly no”,“No”, “Maybe”, “Yes”, “Strongly yes”.
+
+```{r}
+df <- read.delim("http://hex.bioinfo.hr/~mfabijanic/df.txt", header=T)
+```
+Hint: change the colors of the groups manually to show the missing groups.
+These are the colors from Strongly yes to Strongly no: c(“#1a9641”, “#a6d96a”, “#ffffbf”, “#fdae61”,“#d7191c”)
+
+```{r}
+var1b<-ggplot(df, aes(recommend)) + scale_x_discrete(limits=c("Strongly no", "No", "Maybe", "Yes", "Strongly yes")) + geom_bar(color = "black", fill=c("#1a9641","#a6d96a")) + labs(x = "Will you recommend #NGSchool to your friends and colleagues?", y = "Number of people") + theme(axis.title.x = element_text(face = "bold"), axis.title.y = element_text(face = "bold"))
+
+var1b
+```
+<span style="color:red"> 4.5/5 pts Again, you have not changed the background.  </span>
+
+
+C) 5 points. Create any plot you want from the data. Make some comparisons for different groups (use facets). Make some meaningful conclusion from it.
+```{r}
+works$Grade<-factor(works$Grade, level= c("Excellent", "Good", "Average", "Below average", "Extremely bad"))
+ggplot(works, aes(Grade, fill=Lecturer)) + geom_bar() + facet_grid(Lecturer~Position) + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+#By looking at the graph we can conclude that Lecturer's 2 and 3 gave the best impression to the MSc, PhD and PosDoc participants and that they also agree on which lecturer was the worst, that being Lecturer number 5. We can see that the Industry specialist had a very average impression of all lecturers not grading any lecture nor excellent nor bad or extremely bad. We can conclude that almost every lecturer gave a good performance in except for Lecturer 5 and Lecturer 6 who did not give a bad impression neither an excellent one.
+```
+<span style="color:green"> 5/5 pts Nice, simple conclusions from the plot what it is supposed to show. </span>
+
+
+D) for extra 2 points: create pie chart and add some labels. This is not a good practice thus it is not straightforward thing to do in ggplot.
+```{r}
+#1. Modifying the table to show missing groups
+dtemp<-as.data.table(data.frame(cbind(c("Maybe", "No", "Strongly no"), c(0, 0, 0))))
+colnames(dtemp)<-c("recommend", "value")
+
+df<-as.data.table(df) 
+df<-df[, value := .N, by = recommend]
+df<-df[1:2]
+
+data<-rbind(df, dtemp); 
+
+#2. Showing only groups that are not missing
+var1d<-ggplot(df, aes(x="", y = value, fill=recommend)) + geom_bar(stat = "identity") + coord_polar("y", start = 0) + theme_void() + geom_text(aes(label = recommend), color = "white")
+var1d
+```
+
+<span style="color:red"> Extra 1.5/2 Label "Yes" is not completely within its area. If you are using labels then you do not need the legend. </span>
+
+
+
+#2. LTRs in mouse
+15 points
+
+Read in table RepeatMaskerMousechr12. It contains locations of repeats for mouse chromosome 12. Table filtering.csv contains other information about repeats that we are interested in. Here is schema about RepeatMasker table: Repeat Masker table schema.
+```{r}
+library(data.table)
+rm_table <- fread("../original_HW6/RepeatMaskerMousechr12.txt")
+translator <- read.csv("../original_HW6/filtering.csv", header=F)
+```
+
+A) 2 points. From the table get only rows containing information about repeats with RepName from filtering.csv table, column 2
+
+```{r}
+colnames(translator)[2]<-c("RepName")
+
+var2a<-rm_table %>%
+  rename(RepName = repName) %>%
+  semi_join(translator, by = "RepName")
+
+var2a
+```
+<span style="color:green"> 2/2 pts. </span>
+
+B) 1 point Visualise lengths of LTR elements by classes (RepName) as a single histogram:
+```{r}
+var2a <- var2a %>% mutate(Length = genoEnd - genoStart) 
+
+var2b<-ggplot(var2a, aes(x = Length, fill = RepName)) + geom_histogram(position = 'dodge')
+
+var2b
+```
+<span style="color:green"> 1/1 pts. </span>
+
+C) 1 point visualise histograms of RepName lengths separately:
+```{r}
+var2c<-ggplot(var2a, aes(Length, fill = RepName)) + geom_histogram() + facet_wrap(~RepName)
+
+var2c
+```
+<span style="color:green"> 1/1 pts. </span>
+
+D) 2 points. Visualise lengths for Classes in filtering.csv separately, with density graphs showing for each RepName belonging to a class. Use transparency 0.5.
+```{r}
+colnames(translator)[1]<- "Class"
+
+var2a <- var2a %>%
+  inner_join(translator, by = "RepName")
+
+var2d<-ggplot(var2a, aes(Length, fill = RepName)) + facet_wrap(~Class) + geom_density(alpha = 0.5)
+
+var2d
+```
+<span style="color:green"> 2/2 pts. </span>
+
+E) 3 points. Show the class and RepName and both histograms and density plot (make only the line visible from density plot)
+```{r}
+var2e<-ggplot(var2a, aes(x = Length)) + geom_histogram(aes(y = ..density.., fill = RepName)) + geom_density() + facet_wrap(~Class + RepName)
+
+var2e
+```
+<span style="color:green"> 3/3 pts. </span>
+
+F) 4 points. Filter each LTR element based on length, keeping only those in range of column 3 - column 4 from filtering.txt. Make a plot where histogram of old values are on the left and histogram for new values are on the right (adjust levels of the factor for correct positioning). Plot should look like this: 
+```{r}
+var2f<-var2a %>%
+  rename(left_lim = V3, right_lim = V4) %>%
+  filter(Length >= left_lim & Length <= right_lim) %>%
+  mutate(Filt = "Filtered")
+
+var2a<-var2a %>%
+  mutate(Filt = "Not Filtered") %>%
+  rename(left_lim = V3, right_lim = V4) %>%
+  rbind(var2f)
+
+var2a$Filt<-factor(var2a$Filt, level= c("Not Filtered", "Filtered"))
+  
+var2f2<-ggplot(var2a, aes(x = Length,fill = RepName)) + geom_histogram(position = 'identity') + facet_grid(RepName~Filt)
+
+var2f2
+```
+<span style="color:green"> 4/4 pts. </span>
+
+G) 2 points. Visualise percentage of each class lost in filtering: 
+```{r}
+var2g<-var2a %>%
+  group_by(RepName, Filt) %>%
+  summarise(n = n()) %>%
+  mutate (Fraction = ifelse(Filt == "Not Filtered", (n - n[Filt=="Filtered"]) / n, n / n[Filt=="Not Filtered"])) %>%
+  ggplot(aes(x = RepName, y = Fraction, fill = Filt)) + geom_col() + labs(x = "Repeat name") + scale_fill_discrete(name = "Tyoe", labels = c("Lost by fitering", "Retained after filtering"))
+
+var2g
+```
+
+<span style="color:green"> 2/2 pts. </span>
+
